@@ -20,7 +20,12 @@ const Dashboard = () => {
   const [getAnalytics] = useGetAnalyticsMutation();
   const [analyticsData, setAnalyticsData] = useState({
     dates: [],
-    users: [],
+    activeUsers: [],
+    newUsers: [],
+    sessions: [],
+    screenPageViews: [],
+    averageSessionDuration: [],
+    bounceRate: [],
   });
 
   useEffect(() => {
@@ -29,16 +34,20 @@ const Dashboard = () => {
         const response = await getAnalytics({
           startDate: '7daysAgo',
           endDate: 'today',
-          metrics: ['activeUsers'],
+          metrics: ['activeUsers', 'newUsers', 'sessions', 'screenPageViews', 'averageSessionDuration', 'bounceRate'],
           dimensions: ['date'],
         }).unwrap();
 
-        const dates = response.data.map((item) => item.date);
-        const users = response.data.map((item) => item.activeUsers);
+        const data = response.data;
 
         setAnalyticsData({
-          dates,
-          users,
+          dates: data.map((item) => item.date),
+          activeUsers: data.map((item) => item.activeUsers),
+          newUsers: data.map((item) => item.newUsers),
+          sessions: data.map((item) => item.sessions),
+          screenPageViews: data.map((item) => item.screenPageViews),
+          averageSessionDuration: data.map((item) => item.averageSessionDuration),
+          bounceRate: data.map((item) => item.bounceRate),
         });
       } catch (error) {
         console.error('Error fetching analytics:', error);
@@ -47,6 +56,7 @@ const Dashboard = () => {
 
     fetchAnalytics();
   }, [getAnalytics]);
+
   return (
     <div className="admin-main-content">
       <div className="admin-container-fluid">
@@ -64,9 +74,27 @@ const Dashboard = () => {
                     datasets: [
                       {
                         label: 'Người dùng hoạt động',
-                        data: analyticsData.users,
+                        data: analyticsData.activeUsers,
                         borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1,
+                        tension: 0.2,
+                      },
+                      {
+                        label: 'Người dùng mới',
+                        data: analyticsData.newUsers,
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.2,
+                      },
+                      {
+                        label: 'Số phiên truy cập',
+                        data: analyticsData.sessions,
+                        borderColor: 'rgb(54, 162, 235)',
+                        tension: 0.2,
+                      },
+                      {
+                        label: 'Lượt xem trang/màn hình',
+                        data: analyticsData.screenPageViews,
+                        borderColor: 'rgb(153, 102, 255)',
+                        tension: 0.2,
                       },
                     ],
                   }}
@@ -78,7 +106,7 @@ const Dashboard = () => {
                       },
                       title: {
                         display: true,
-                        text: 'Thống kê người dùng hoạt động',
+                        text: 'Thống kê người dùng & hành vi',
                       },
                     },
                   }}
@@ -88,13 +116,29 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Thống kê */}
-        {/* <div className="row mt-3">
+        {/* Bảng thông tin tổng quát */}
+        <div className="row mt-3">
           {[
-            { color: 'warning', text: 'Phim mới', count: 0 },
-            { color: 'danger', text: 'Top phim có người xem nhiều', count: 0 },
-            { color: 'primary', text: 'User mới/Tổng số user', count: '0/27' },
-            { color: 'success', text: 'Số phiên truy cập', count: '0' },
+            {
+              color: 'primary',
+              text: 'User mới / Tổng user hoạt động',
+              count: `${analyticsData.newUsers.at(-1) || 0} / ${analyticsData.activeUsers.at(-1) || 0}`,
+            },
+            {
+              color: 'success',
+              text: 'Số phiên truy cập',
+              count: analyticsData.sessions.at(-1) || 0,
+            },
+            {
+              color: 'warning',
+              text: 'Thời lượng trung bình phiên (giây)',
+              count: Math.round(analyticsData.averageSessionDuration.at(-1) || 0),
+            },
+            {
+              color: 'danger',
+              text: 'Tỷ lệ thoát (%)',
+              count: (analyticsData.bounceRate.at(-1) || 0).toFixed(2),
+            },
           ].map((item, index) => (
             <div className="col-md-3" key={index}>
               <div className={`card bg-${item.color} text-white p-3`}>
@@ -106,7 +150,7 @@ const Dashboard = () => {
               </div>
             </div>
           ))}
-        </div> */}
+        </div>
       </div>
     </div>
   );

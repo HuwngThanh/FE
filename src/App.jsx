@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/home/Home';
 import SeeMore from './pages/SeeMoreProduct/SeeMore';
@@ -19,8 +20,13 @@ import HistoryPage from './pages/home/components/js/HistoryPage';
 import AnalyticsTracker from './AnalyticsTracker';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { initGA } from './analytics';
 
 function App() {
+  useEffect(() => {
+    initGA(); // Chạy một lần khi app khởi động
+  }, []);
+
   return (
     <Router>
       <ScrollToTop />

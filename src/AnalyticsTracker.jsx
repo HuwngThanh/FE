@@ -6,13 +6,11 @@ function AnalyticsTracker() {
   const location = useLocation();
 
   useEffect(() => {
-    // Gửi sự kiện pageview mỗi khi location thay đổi
     const currentPath = location.pathname + location.search;
     logPageView(currentPath);
-    console.log(`GA Pageview logged for: ${currentPath}`); // Thêm log để dễ debug
+    console.log(`GA Pageview logged for: ${currentPath}`);
   }, [location]);
 
-  // Component này không render gì ra UI
   return null;
 }
 
