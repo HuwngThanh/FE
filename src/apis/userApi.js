@@ -1,22 +1,34 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import axiosBaseQuery from '../utils/axios.util';
 
+console.log('DEBUG VITE_BASE_API:', import.meta.env.VITE_BASE_API);
 export const userApi = createApi({
   reducerPath: 'userApi',
   baseQuery: axiosBaseQuery({
     baseUrl: import.meta.env.VITE_BASE_API,
   }),
+
   tagTypes: ['User'],
   endpoints: (builder) => ({
+    // getUsers: builder.query({
+    //   query: () => '/users',
+    //   credentials: true,
+    //   providesTags: (result) =>
+    //     result
+    //       ? [...result.map(({ id }) => ({ type: 'User', id })), { type: 'User', id: 'LIST' }]
+    //       : [{ type: 'User', id: 'LIST' }],
+    // }),
     getUsers: builder.query({
-      query: () => '/users',
-      credentials: true,
+      query: () => ({
+        url: '/users',
+        method: 'GET',
+        credentials: true,
+      }),
       providesTags: (result) =>
         result
           ? [...result.map(({ id }) => ({ type: 'User', id })), { type: 'User', id: 'LIST' }]
           : [{ type: 'User', id: 'LIST' }],
     }),
-
     getUserById: builder.query({
       query: (id) => ({
         url: `/users/${id}/admin`,

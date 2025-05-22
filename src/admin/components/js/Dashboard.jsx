@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/dashboard.css';
 import { useGetAnalyticsMutation } from '../../../apis/dashboardApi';
+import { useGetUsersQuery } from '../../../apis/userApi';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -18,6 +19,9 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 
 const Dashboard = () => {
   const [getAnalytics] = useGetAnalyticsMutation();
+  const { data, isLoading } = useGetUsersQuery();
+  const users = data || [];
+
   const [analyticsData, setAnalyticsData] = useState({
     dates: [],
     activeUsers: [],
@@ -38,16 +42,24 @@ const Dashboard = () => {
           dimensions: ['date'],
         }).unwrap();
 
-        const data = response.data;
+        const data = response.data || [];
+
+        // Đồng bộ dữ liệu theo ngày
+        const analyticsByDate = {};
+        data.forEach((item) => {
+          analyticsByDate[item.date] = item;
+        });
+
+        const sortedDates = Object.keys(analyticsByDate).sort();
 
         setAnalyticsData({
-          dates: data.map((item) => item.date),
-          activeUsers: data.map((item) => item.activeUsers),
-          newUsers: data.map((item) => item.newUsers),
-          sessions: data.map((item) => item.sessions),
-          screenPageViews: data.map((item) => item.screenPageViews),
-          averageSessionDuration: data.map((item) => item.averageSessionDuration),
-          bounceRate: data.map((item) => item.bounceRate),
+          dates: sortedDates,
+          activeUsers: sortedDates.map((date) => analyticsByDate[date]?.activeUsers || 0),
+          newUsers: sortedDates.map((date) => analyticsByDate[date]?.newUsers || 0),
+          sessions: sortedDates.map((date) => analyticsByDate[date]?.sessions || 0),
+          screenPageViews: sortedDates.map((date) => analyticsByDate[date]?.screenPageViews || 0),
+          averageSessionDuration: sortedDates.map((date) => analyticsByDate[date]?.averageSessionDuration || 0),
+          bounceRate: sortedDates.map((date) => analyticsByDate[date]?.bounceRate || 0),
         });
       } catch (error) {
         console.error('Error fetching analytics:', error);
@@ -56,6 +68,20 @@ const Dashboard = () => {
 
     fetchAnalytics();
   }, [getAnalytics]);
+
+  // =======================
+  // Thống kê người dùng mới
+  // =======================
+  const totalUsers = users.length;
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+
+  const newUsersCount = users.filter((user) => {
+    if (!user.createdAt) return false;
+    const createdDate = new Date(user.createdAt);
+    return createdDate >= sevenDaysAgo;
+  }).length;
 
   return (
     <div className="admin-main-content">
@@ -87,7 +113,7 @@ const Dashboard = () => {
                       {
                         label: 'Số phiên truy cập',
                         data: analyticsData.sessions,
-                        borderColor: 'rgb(54, 162, 235)',
+                        borderColor: 'rgb(8, 134, 84)',
                         tension: 0.2,
                       },
                       {
@@ -101,12 +127,15 @@ const Dashboard = () => {
                   options={{
                     responsive: true,
                     plugins: {
-                      legend: {
-                        position: 'top',
-                      },
+                      legend: { position: 'top' },
                       title: {
                         display: true,
                         text: 'Thống kê người dùng & hành vi',
+                      },
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
                       },
                     },
                   }}
@@ -116,13 +145,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Bảng thông tin tổng quát */}
+        {/* Thống kê tổng quan */}
         <div className="row mt-3">
           {[
             {
               color: 'primary',
-              text: 'User mới / Tổng user hoạt động',
-              count: `${analyticsData.newUsers.at(-1) || 0} / ${analyticsData.activeUsers.at(-1) || 0}`,
+              text: 'User mới / Tổng số user',
+              count: `${newUsersCount} / ${totalUsers}`,
             },
             {
               color: 'success',
