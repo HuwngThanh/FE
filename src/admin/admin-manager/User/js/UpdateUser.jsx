@@ -71,53 +71,63 @@ function UpdateUser() {
 
   const openFilePicker = () => fileInputRef.current.click();
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   setMessage({ type: '', content: '' });
+  // Hàm xử lý lỗi trùng lặp từ backend
+  const handleDuplicateError = (error, changedFields) => {
+    const errorMessage = error.data?.message || error.message || '';
+    const original = userData.user;
 
-  //   // Password confirmation
-  //   if (formData.password && formData.password !== formData.confirmPassword) {
-  //     setMessage({ type: 'error', content: 'Mật khẩu xác nhận không khớp!' });
-  //     return;
-  //   }
+    // Kiểm tra lỗi trùng username
+    if (
+      errorMessage.toLowerCase().includes('username') &&
+      (errorMessage.toLowerCase().includes('exists') ||
+        errorMessage.toLowerCase().includes('duplicate') ||
+        errorMessage.toLowerCase().includes('trùng'))
+    ) {
+      // Nếu có thay đổi email, thử cập nhật với username gốc + email mới
+      if (changedFields.email && Object.keys(changedFields).length > 1) {
+        const newFields = {
+          username: original.username, // Giữ nguyên username gốc
+          email: changedFields.email,
+        };
+        if (changedFields.password) newFields.password = changedFields.password;
+        if (changedFields.phone) newFields.phone = changedFields.phone;
+        if (changedFields.role !== undefined) newFields.role = changedFields.role;
 
-  //   // Build payload
-  //   const dataToSend = {
-  //     username: formData.username,
-  //     email: formData.email,
-  //     phone: formData.phone,
-  //     role: formData.role,
-  //     ...(formData.password ? { password: formData.password } : {}),
-  //   };
+        return {
+          shouldRetry: true,
+          newFields: newFields,
+          warningMessage: 'Username đã tồn tại. Đã cập nhật các thông tin khác (giữ nguyên username cũ).',
+        };
+      }
+    }
 
-  //   let payload;
-  //   if (avatarFile) {
-  //     payload = new FormData();
-  //     Object.entries(dataToSend).forEach(([key, val]) => payload.append(key, val));
-  //     payload.append('avatar', avatarFile);
-  //   } else {
-  //     payload = dataToSend;
-  //   }
-  //   if (avatarFile) {
-  //     payload = new FormData();
-  //     payload.append('id', userId); // THÊM DÒNG NÀY
-  //     Object.entries(dataToSend).forEach(([key, val]) => payload.append(key, val));
-  //     payload.append('avatar', avatarFile);
-  //   } else {
-  //     payload = { id: userId, ...dataToSend }; // VÀ CẬP NHẬT Ở ĐÂY
-  //   }
+    // Kiểm tra lỗi trùng email
+    if (
+      errorMessage.toLowerCase().includes('email') &&
+      (errorMessage.toLowerCase().includes('exists') ||
+        errorMessage.toLowerCase().includes('duplicate') ||
+        errorMessage.toLowerCase().includes('trùng'))
+    ) {
+      // Nếu có thay đổi username, thử cập nhật với email gốc + username mới
+      if (changedFields.username && Object.keys(changedFields).length > 1) {
+        const newFields = {
+          username: changedFields.username,
+          email: original.email, // Giữ nguyên email gốc
+        };
+        if (changedFields.password) newFields.password = changedFields.password;
+        if (changedFields.phone) newFields.phone = changedFields.phone;
+        if (changedFields.role !== undefined) newFields.role = changedFields.role;
 
-  //   try {
-  //     await updateUser({ id: userId, data: payload }).unwrap();
-  //     toast.success('Cập nhật người dùng thành công!');
-  //     navigate('/admin/listuser');
-  //   } catch (err) {
-  //     console.error('Lỗi cập nhật user:', err);
-  //     const errMsg = err.data?.message || err.message || 'Có lỗi khi cập nhật.';
-  //     setMessage({ type: 'error', content: errMsg });
-  //     toast.error(errMsg);
-  //   }
-  // };
+        return {
+          shouldRetry: true,
+          newFields: newFields,
+          warningMessage: 'Email đã tồn tại. Đã cập nhật các thông tin khác (giữ nguyên email cũ).',
+        };
+      }
+    }
+
+    return { shouldRetry: false };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -158,46 +168,81 @@ function UpdateUser() {
       changedFields.password = formData.password;
     }
 
-    let payload;
-
-    if (avatarFile) {
-      payload = new FormData();
-      payload.append('id', userId);
-      Object.entries(changedFields).forEach(([key, val]) => payload.append(key, val));
-      payload.append('avatar', avatarFile);
-    } else {
-      payload = {
-        id: userId,
-        ...changedFields,
-      };
-    }
-
     if (Object.keys(changedFields).length === 0 && !avatarFile) {
       setMessage({ type: 'info', content: 'Không có thay đổi nào để cập nhật.' });
       return;
     }
 
-    try {
-      await updateUser({ id: userId, data: payload }).unwrap();
-      // toast.success('Cập nhật người dùng thành công!');
-      // navigate('/admin/listuser');
-      setMessage({ type: 'success', content: 'Cập nhật người dùng thành công!' });
-      setTimeout(() => {
-        navigate('/admin/listuser');
-      }, 1500);
-    } catch (err) {
-      console.error('Lỗi cập nhật user:', err);
-      const errMsg = err.data?.message || err.message || 'Có lỗi khi cập nhật.';
-      setMessage({ type: 'error', content: errMsg });
-      toast.error(errMsg);
-    }
+    // Hàm thực hiện update - LUÔN GỬI TẤT CẢ THÔNG TIN
+    const performUpdate = async (fieldsToUpdate, isRetry = false) => {
+      let payload;
+
+      // Tạo payload với TẤT CẢ thông tin hiện tại, chỉ thay đổi những field được update
+      const fullData = {
+        username: fieldsToUpdate.username || original.username,
+        email: fieldsToUpdate.email || original.email,
+        phone: fieldsToUpdate.phone || original.phone,
+        role: fieldsToUpdate.role !== undefined ? fieldsToUpdate.role : original.role,
+        ...(fieldsToUpdate.password ? { password: fieldsToUpdate.password } : {}),
+      };
+
+      if (avatarFile) {
+        payload = new FormData();
+        payload.append('id', userId);
+        Object.entries(fullData).forEach(([key, val]) => payload.append(key, val));
+        payload.append('avatar', avatarFile);
+      } else {
+        payload = {
+          id: userId,
+          ...fullData,
+        };
+      }
+
+      try {
+        await updateUser({ id: userId, data: payload }).unwrap();
+
+        if (isRetry) {
+          setMessage({ type: 'warning', content: 'Cập nhật một phần thành công! Một số thông tin có thể đã tồn tại.' });
+        } else {
+          setMessage({ type: 'success', content: 'Cập nhật người dùng thành công!' });
+        }
+
+        setTimeout(() => {
+          navigate('/admin/listuser');
+        }, 2000);
+      } catch (err) {
+        console.error('Lỗi cập nhật user:', err);
+
+        if (!isRetry) {
+          // Thử xử lý lỗi trùng lặp
+          const duplicateHandler = handleDuplicateError(err, fieldsToUpdate);
+
+          if (duplicateHandler.shouldRetry) {
+            // Hiển thị warning và thử lại với fields mới
+            setMessage({ type: 'warning', content: duplicateHandler.warningMessage });
+
+            setTimeout(async () => {
+              await performUpdate(duplicateHandler.newFields, true);
+            }, 1000);
+            return;
+          }
+        }
+
+        // Nếu không thể xử lý hoặc đã retry, hiển thị lỗi
+        const errMsg = err.data?.message || err.message || 'Có lỗi khi cập nhật.';
+        setMessage({ type: 'error', content: errMsg });
+        toast.error(errMsg);
+      }
+    };
+
+    // Bắt đầu quá trình update
+    await performUpdate(changedFields);
   };
+
   const handleDeleteUser = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này không?')) return;
     try {
       await deleteUser(userId).unwrap();
-      // toast.success('Xóa người dùng thành công!');
-      // navigate('/admin/listuser');
       setMessage({ type: 'success', content: 'Xóa người dùng thành công!' });
       setTimeout(() => {
         navigate('/admin/listuser');
@@ -262,7 +307,17 @@ function UpdateUser() {
           {isLoadingUser && <p>Đang tải thông tin người dùng...</p>}
 
           {message.content && (
-            <div className={`alert ${message.type === 'error' ? 'alert-danger' : 'alert-success'}`}>
+            <div
+              className={`alert ${
+                message.type === 'error'
+                  ? 'alert-danger'
+                  : message.type === 'warning'
+                    ? 'alert-warning'
+                    : message.type === 'info'
+                      ? 'alert-info'
+                      : 'alert-success'
+              }`}
+            >
               {message.content}
             </div>
           )}

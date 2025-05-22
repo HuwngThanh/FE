@@ -12,7 +12,7 @@ function ListUser() {
 
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
-  const API_URL = 'https://capstone-project-be-production-a0e0.up.railway.app/api/users';
+  const API_URL = 'https://film-dbb2.onrender.com/api/users';
 
   const fetchUsers = async () => {
     setIsLoading(true);
