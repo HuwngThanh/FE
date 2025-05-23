@@ -83,6 +83,16 @@ const Dashboard = () => {
     return createdDate >= sevenDaysAgo;
   }).length;
 
+  const formatDuration = (seconds) => {
+    const hrs = Math.floor(seconds / 3600)
+      .toString()
+      .padStart(2, '0');
+    const mins = Math.floor((seconds % 3600) / 60)
+      .toString()
+      .padStart(2, '0');
+    return `${hrs}h ${mins}m`;
+  };
+
   return (
     <div className="admin-main-content">
       <div className="admin-container-fluid">
@@ -113,7 +123,7 @@ const Dashboard = () => {
                       {
                         label: 'Số phiên truy cập',
                         data: analyticsData.sessions,
-                        borderColor: 'rgb(8, 134, 84)',
+                        borderColor: 'rgb(2, 174, 105)',
                         tension: 0.2,
                       },
                       {
@@ -160,8 +170,8 @@ const Dashboard = () => {
             },
             {
               color: 'warning',
-              text: 'Thời lượng trung bình phiên (giây)',
-              count: Math.round(analyticsData.averageSessionDuration.at(-1) || 0),
+              text: 'Thời lượng trung bình phiên ',
+              count: formatDuration(Math.round(analyticsData.averageSessionDuration.at(-1) || 0)),
             },
             {
               color: 'danger',
